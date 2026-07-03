@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบบันทึกปริมาณการใช้น้ำประปาและน้ำบาดาล</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{ --tap-color:#0d6efd; --ground-color:#0f9d58; --bg-soft:#f4f7fb; --brand-dark:#084298; }
+body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f2937; }
+.app-navbar{ background:linear-gradient(90deg,var(--brand-dark),#0d6efd); }
+.navbar .nav-link{ color:rgba(255,255,255,.85); cursor:pointer; }
+.navbar .nav-link.active,.navbar .nav-link:hover{ color:#fff; font-weight:600; }
+.card{ border:none; border-radius:16px; box-shadow:0 2px 10px rgba(15,23,42,.06); }
+.card-header{ background:#fff; border-bottom:1px solid #eef1f6; border-radius:16px 16px 0 0 !important; font-weight:600; }
+.stat-card .stat-icon{ width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem; }
+.icon-tap{ background:rgba(13,110,253,.12); color:var(--tap-color); }
+.icon-ground{ background:rgba(15,157,88,.12); color:var(--ground-color); }
+.icon-date{ background:rgba(255,193,7,.15); color:#b98900; }
+.icon-recorder{ background:rgba(111,66,193,.12); color:#6f42c1; }
+.table thead th{ background:#eef4ff; border-bottom:none; font-weight:600; white-space:nowrap; }
+.badge-tank-ok{ background:#e6f6ec; color:#0f9d58; border:1px solid #b9e6c8; }
+.badge-tank-bad{ background:#fdecec; color:#d93025; border:1px solid #f5c2c2; }
+.meter-photo-thumb{ width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer; }
+.camera-preview{ max-width:220px;border-radius:12px;border:1px solid #e5e7eb;display:none; }
+.tank-check-item{ border:1px solid #e5e7eb;border-radius:12px;padding:.75rem 1rem;background:#fff; }
+.section-title{ font-weight:700; color:var(--brand-dark); }
+.tab-section{ display:none; }
+.tab-section.active{ display:block; }
+.spinner-wrap{ text-align:center; padding:2rem; color:#94a3b8; }
+#configWarning{ display:none; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark app-navbar sticky-top">
+  <div class="container-fluid">
+    <span class="navbar-brand d-flex align-items-center gap-2">
+      <i class="bi bi-droplet-half fs-4"></i>
+      <span class="fw-semibold">ระบบน้ำประปา-บาดาล</span>
+    </span>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link active" data-tab="dashboard"><i class="bi bi-speedometer2 me-1"></i>แดชบอร์ด</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="add"><i class="bi bi-plus-circle me-1"></i>บันทึกวันนี้</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="history"><i class="bi bi-table me-1"></i>ประวัติข้อมูล</a></li>
+        <li class="nav-item"><a class="nav-link" data-tab="tanks"><i class="bi bi-hdd-stack me-1"></i>ถังเก็บน้ำ</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="container-fluid py-4 px-3 px-md-4">
+
+<div id="configWarning" class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  ยังไม่ได้ตั้งค่า URL ของ Apps Script — แก้ตัวแปร <code>APPS_SCRIPT_URL</code> ที่ต้นไฟล์ index.html (ดูวิธีใน README.md)
+</div>
+
+<!-- ===================== DASHBOARD ===================== -->
+<section id="tab-dashboard" class="tab-section active">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="section-title mb-0">แดชบอร์ดภาพรวมการใช้น้ำ</h3>
+      <div class="text-muted small" id="dashUpdated">อัปเดตล่าสุด: -</div>
+    </div>
+    <button class="btn btn-primary rounded-pill px-4" data-tab-link="add"><i class="bi bi-plus-lg me-1"></i>บันทึกข้อมูลวันนี้</button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card stat-card h-100"><div class="card-body d-flex align-items-center gap-3">
+      <div class="stat-icon icon-tap"><i class="bi bi-droplet-fill"></i></div>
+      <div><div class="text-muted small">ใช้น้ำประปาล่าสุด</div><div class="fs-5 fw-bold" id="statTapUsage">-</div></div>
+    </div></div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card h-100"><div class="card-body d-flex align-items-center gap-3">
+      <div class="stat-icon icon-ground"><i class="bi bi-water"></i></div>
+      <div><div class="text-muted small">ใช้น้ำบาดาลล่าสุด</div><div class="fs-5 fw-bold" id="statGroundUsage">-</div></div>
+    </div></div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card h-100"><div class="card-body d-flex align-items-center gap-3">
+      <div class="stat-icon icon-date"><i class="bi bi-calendar-month"></i></div>
+      <div><div class="text-muted small">รวมเดือนนี้ (ประปา/บาดาล)</div><div class="fs-6 fw-bold" id="statMonth">-</div></div>
+    </div></div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card h-100"><div class="card-body d-flex align-items-center gap-3">
+      <div class="stat-icon icon-recorder"><i class="bi bi-person-check"></i></div>
+      <div><div class="text-muted small">ผู้บันทึกล่าสุด</div><div class="fs-6 fw-bold text-truncate" style="max-width:140px;" id="statRecorder">-</div></div>
+    </div></div></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-bar-chart-line me-1"></i>ยอดการใช้น้ำรายเดือน</span>
+          <select id="yearSelect" class="form-select form-select-sm" style="width:auto;"></select>
+        </div>
+        <div class="card-body"><canvas id="usageChart" height="120"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-hdd-stack me-1"></i>สถานะถังเก็บน้ำ (ล่าสุด)</div>
+        <div class="card-body" id="tankStatusBox"><p class="text-muted mb-0">กำลังโหลด...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-clock-history me-1"></i>บันทึกล่าสุด</span>
+      <a class="small" data-tab-link="history" style="cursor:pointer;">ดูทั้งหมด <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="card-body p-0"><div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead><tr><th>วันที่</th><th>มาตรประปา</th><th>ใช้ (ประปา)</th><th>มาตรบาดาล</th><th>ใช้ (บาดาล)</th><th>ผู้บันทึก</th><th>รูปถ่าย</th></tr></thead>
+        <tbody id="recentTableBody"><tr><td colspan="7" class="text-center text-muted py-4">กำลังโหลด...</td></tr></tbody>
+      </table>
+    </div></div>
+  </div>
+</section>
+
+<!-- ===================== ADD RECORD ===================== -->
+<section id="tab-add" class="tab-section">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="section-title mb-0"><i class="bi bi-pencil-square me-2"></i>บันทึกข้อมูลการใช้น้ำวันนี้</h3>
+  </div>
+  <div id="addAlert"></div>
+  <div class="alert alert-info d-flex flex-wrap gap-4" id="lastReadingBox" style="display:none;"></div>
+
+  <form id="recordForm" class="row g-4">
+    <div class="col-lg-8">
+      <div class="card"><div class="card-header">ข้อมูลมาตรน้ำ</div><div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4"><label class="form-label">วัน-เดือน-ปี <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="f_date" required></div>
+          <div class="col-md-4"><label class="form-label">เลขมาตรน้ำประปา <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" class="form-control" id="f_tap" required></div>
+          <div class="col-md-4"><label class="form-label">เลขมาตรน้ำบาดาล <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" class="form-control" id="f_ground" required></div>
+        </div>
+        <hr>
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">ผู้บันทึกข้อมูลวันนี้ <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="f_recorder" list="recorderList" required>
+            <datalist id="recorderList"></datalist></div>
+          <div class="col-md-6"><label class="form-label">หมายเหตุ (ถ้ามี)</label>
+            <input type="text" class="form-control" id="f_note"></div>
+        </div>
+      </div></div>
+
+      <div class="card mt-3"><div class="card-header"><i class="bi bi-camera me-1"></i>ถ่ายรูป / แนบรูปมาตรน้ำ</div><div class="card-body">
+        <input type="file" id="f_photo" accept="image/*" capture="environment" class="form-control">
+        <div class="form-text">ใช้กล้องมือถือถ่ายรูปได้ทันที หรือเลือกไฟล์จากเครื่อง</div>
+        <img id="photoPreview" class="camera-preview mt-2">
+      </div></div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-hdd-stack me-1"></i>ตรวจสอบถังเก็บน้ำ</div>
+        <div class="card-body d-flex flex-column gap-2" id="tankCheckBox">
+          <p class="text-muted mb-0">กำลังโหลด...</p>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 mt-3 py-2 rounded-pill" id="submitBtn">
+        <i class="bi bi-save me-1"></i>บันทึกข้อมูล
+      </button>
+    </div>
+  </form>
+</section>
+
+<!-- ===================== HISTORY ===================== -->
+<section id="tab-history" class="tab-section">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <h3 class="section-title mb-0"><i class="bi bi-table me-2"></i>ประวัติข้อมูลทั้งหมด</h3>
+    <select id="historyMonthFilter" class="form-select" style="width:auto;"><option value="">ทุกเดือน</option></select>
+  </div>
+  <div class="card"><div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>วันที่</th><th>มาตรประปา</th><th>ใช้ (ประปา)</th><th>มาตรบาดาล</th><th>ใช้ (บาดาล)</th><th>ผู้บันทึก</th><th>รูป</th><th>ถัง</th><th class="text-end">จัดการ</th></tr></thead>
+      <tbody id="historyTableBody"><tr><td colspan="9" class="text-center text-muted py-4">กำลังโหลด...</td></tr></tbody>
+    </table>
+  </div></div></div>
+</section>
+
+<!-- ===================== TANKS ===================== -->
+<section id="tab-tanks" class="tab-section">
+  <h3 class="section-title mb-4"><i class="bi bi-hdd-stack me-2"></i>จัดการถังเก็บน้ำ</h3>
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card"><div class="card-header">เพิ่มถังเก็บน้ำใหม่</div><div class="card-body">
+        <form id="addTankForm" class="d-flex gap-2">
+          <input type="text" id="newTankName" class="form-control" placeholder="เช่น ถังเก็บน้ำอาคารผู้ป่วยนอก" required>
+          <button class="btn btn-primary"><i class="bi bi-plus-lg"></i></button>
+        </form>
+      </div></div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card"><div class="card-header">รายการถังเก็บน้ำทั้งหมด</div><div class="card-body p-0">
+        <table class="table mb-0 align-middle">
+          <thead><tr><th>ชื่อถัง</th><th>สถานะ</th><th class="text-end">จัดการ</th></tr></thead>
+          <tbody id="tanksTableBody"><tr><td colspan="3" class="text-center text-muted py-4">กำลังโหลด...</td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- PHOTO MODAL -->
+<div class="modal fade" id="photoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h6 class="modal-title">รูปถ่ายมาตรน้ำ</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body text-center"><img id="photoModalImg" src="" class="img-fluid rounded"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h6 class="modal-title">แก้ไขข้อมูล</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div id="editAlert"></div>
+        <form id="editForm">
+          <input type="hidden" id="e_id">
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">วัน-เดือน-ปี</label><input type="date" class="form-control" id="e_date" required></div>
+            <div class="col-md-4"><label class="form-label">มาตรน้ำประปา</label><input type="number" step="0.01" class="form-control" id="e_tap" required></div>
+            <div class="col-md-4"><label class="form-label">มาตรน้ำบาดาล</label><input type="number" step="0.01" class="form-control" id="e_ground" required></div>
+            <div class="col-md-6"><label class="form-label">ผู้บันทึก</label><input type="text" class="form-control" id="e_recorder" required></div>
+            <div class="col-md-6"><label class="form-label">หมายเหตุ</label><input type="text" class="form-control" id="e_note"></div>
+          </div>
+          <div class="mt-3" id="editTankBox"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+        <button class="btn btn-primary" id="editSaveBtn">บันทึกการแก้ไข</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="text-center text-muted small py-4">
+  ระบบบันทึกปริมาณการใช้น้ำประปาและน้ำบาดาล (HTML + Google Sheets)
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* =========================================================
+   ตั้งค่า URL ของ Google Apps Script Web App ที่ deploy แล้ว
+   วิธีหา: Apps Script > Deploy > Manage deployments > คัดลอก Web app URL
+   ========================================================= */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzVPTgieYBCkuqQ_zPg-icrcXQX1LrMRqH6zzr8-QsAvtlIJA2XlhnGYfaOHm1BmHIQNg/exec';
+
+if (APPS_SCRIPT_URL.indexOf('XXXX') !== -1) {
+  document.getElementById('configWarning').style.display = 'block';
+}
+
+// ---------- Helpers: เรียก API ----------
+async function apiGet(action, params) {
+  const url = new URL(APPS_SCRIPT_URL);
+  url.searchParams.set('action', action);
+  for (const k in (params || {})) url.searchParams.set(k, params[k]);
+  const res = await fetch(url);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'เกิดข้อผิดพลาด');
+  return json.data;
+}
+
+async function apiPost(payload) {
+  // ใช้ Content-Type: text/plain เพื่อเลี่ยง CORS preflight ของ Apps Script
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'เกิดข้อผิดพลาด');
+  return json.data;
+}
+
+function fmt(num) {
+  if (num === null || num === undefined || num === '') return '-';
+  num = Number(num);
+  return (Math.floor(num) === num) ? num.toLocaleString() : num.toFixed(2);
+}
+
+const thaiMonthsShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function thaiDate(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return `${d} ${thaiMonthsShort[m - 1]} ${y + 543}`;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function showAlert(containerId, type, msg) {
+  document.getElementById(containerId).innerHTML =
+    `<div class="alert alert-${type} alert-dismissible fade show">${msg}<button class="btn-close" data-bs-dismiss="alert"></button></div>`;
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll('[data-tab]').forEach(el => {
+  el.addEventListener('click', () => switchTab(el.getAttribute('data-tab')));
+});
+document.querySelectorAll('[data-tab-link]').forEach(el => {
+  el.addEventListener('click', () => switchTab(el.getAttribute('data-tab-link')));
+});
+function switchTab(tab) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('[data-tab]').forEach(n => n.classList.toggle('active', n.getAttribute('data-tab') === tab));
+  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'add') loadAddForm();
+  if (tab === 'history') loadHistory();
+  if (tab === 'tanks') loadTanks();
+}
+
+// ---------- DASHBOARD ----------
+let usageChart;
+async function loadDashboard() {
+  try {
+    const data = await apiGet('dashboard');
+    document.getElementById('dashUpdated').textContent = 'อัปเดตล่าสุด: ' + (data.latest ? thaiDate(data.latest.Date) : '-');
+    document.getElementById('statTapUsage').textContent = data.latest ? fmt(data.latest.TapUsage) + ' หน่วย' : '-';
+    document.getElementById('statGroundUsage').textContent = data.latest ? fmt(data.latest.GroundUsage) + ' หน่วย' : '-';
+    document.getElementById('statMonth').textContent = fmt(data.monthTotal.tap) + ' / ' + fmt(data.monthTotal.ground);
+    document.getElementById('statRecorder').textContent = data.latest ? data.latest.Recorder : '-';
+
+    const tankBox = document.getElementById('tankStatusBox');
+    tankBox.innerHTML = data.tankStatus.length ? data.tankStatus.map(t => `
+      <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+        <span>${t.tankName}</span>
+        ${t.checked
+          ? '<span class="badge badge-tank-ok"><i class="bi bi-check-circle me-1"></i>ปกติ</span>'
+          : '<span class="badge badge-tank-bad"><i class="bi bi-exclamation-triangle me-1"></i>ผิดปกติ</span>'}
+      </div>`).join('') : '<p class="text-muted mb-0">ยังไม่มีข้อมูล</p>';
+
+    const body = document.getElementById('recentTableBody');
+    body.innerHTML = data.recent.length ? data.recent.map(r => `
+      <tr>
+        <td>${thaiDate(r.Date)}</td><td>${fmt(r.TapMeter)}</td><td>${fmt(r.TapUsage)}</td>
+        <td>${fmt(r.GroundMeter)}</td><td>${fmt(r.GroundUsage)}</td><td>${r.Recorder}</td>
+        <td>${r.PhotoURL ? `<img src="${r.PhotoURL}" class="meter-photo-thumb" onclick="openPhoto('${r.PhotoURL}')">` : '<span class="text-muted small">-</span>'}</td>
+      </tr>`).join('') : '<tr><td colspan="7" class="text-center text-muted py-4">ยังไม่มีข้อมูล</td></tr>';
+
+    loadYearOptionsAndChart();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadYearOptionsAndChart() {
+  const sel = document.getElementById('yearSelect');
+  if (!sel.dataset.loaded) {
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= currentYear - 4; y--) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y + 543;
+      sel.appendChild(opt);
+    }
+    sel.dataset.loaded = '1';
+    sel.addEventListener('change', () => loadChart(sel.value));
+  }
+  loadChart(sel.value);
+}
+
+async function loadChart(year) {
+  const data = await apiGet('chart', { year });
+  const labels = data.months.map(m => m.label);
+  if (usageChart) usageChart.destroy();
+  usageChart = new Chart(document.getElementById('usageChart'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'น้ำประปา', data: data.months.map(m => m.tap), backgroundColor: '#0d6efd' },
+      { label: 'น้ำบาดาล', data: data.months.map(m => m.ground), backgroundColor: '#0f9d58' },
+    ]},
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+function openPhoto(url) {
+  document.getElementById('photoModalImg').src = url;
+  new bootstrap.Modal(document.getElementById('photoModal')).show();
+}
+
+// ---------- ADD RECORD ----------
+async function loadAddForm() {
+  document.getElementById('f_date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('addAlert').innerHTML = '';
+  try {
+    const [dashboard, tanks, recorders] = await Promise.all([
+      apiGet('dashboard'), apiGet('tanks'), apiGet('recorders'),
+    ]);
+    const lastBox = document.getElementById('lastReadingBox');
+    if (dashboard.latest) {
+      lastBox.style.display = 'flex';
+      lastBox.innerHTML = `<div><i class="bi bi-info-circle me-1"></i><strong>ข้อมูลล่าสุด (${thaiDate(dashboard.latest.Date)})</strong></div>
+        <div>มาตรประปา: <strong>${fmt(dashboard.latest.TapMeter)}</strong></div>
+        <div>มาตรบาดาล: <strong>${fmt(dashboard.latest.GroundMeter)}</strong></div>`;
+    } else { lastBox.style.display = 'none'; }
+
+    document.getElementById('recorderList').innerHTML = recorders.map(r => `<option value="${r}">`).join('');
+
+    const tankBox = document.getElementById('tankCheckBox');
+    tankBox.innerHTML = tanks.length ? tanks.map(t => `
+      <div class="tank-check-item d-flex justify-content-between align-items-center">
+        <span>${t.TankName}</span>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" role="switch" data-tank-id="${t.ID}" checked>
+        </div>
+      </div>`).join('') : '<p class="text-muted mb-0">ยังไม่มีถังเก็บน้ำ — เพิ่มได้ที่เมนู "ถังเก็บน้ำ"</p>';
+  } catch (err) {
+    showAlert('addAlert', 'danger', 'โหลดข้อมูลไม่สำเร็จ: ' + err.message);
+  }
+}
+
+document.getElementById('f_photo').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  const preview = document.getElementById('photoPreview');
+  if (file) { preview.src = URL.createObjectURL(file); preview.style.display = 'block'; }
+});
+
+document.getElementById('recordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
+  try {
+    const tankChecks = {};
+    document.querySelectorAll('#tankCheckBox [data-tank-id]').forEach(el => {
+      tankChecks[el.getAttribute('data-tank-id')] = el.checked;
+    });
+
+    const payload = {
+      action: 'addRecord',
+      date: document.getElementById('f_date').value,
+      tapMeter: document.getElementById('f_tap').value,
+      groundMeter: document.getElementById('f_ground').value,
+      recorder: document.getElementById('f_recorder').value,
+      note: document.getElementById('f_note').value,
+      tankChecks,
+    };
+
+    const photoFile = document.getElementById('f_photo').files[0];
+    if (photoFile) {
+      payload.photoBase64 = await fileToBase64(photoFile);
+      payload.photoName = photoFile.name;
+      payload.photoMime = photoFile.type;
+    }
+
+    await apiPost(payload);
+    showAlert('addAlert', 'success', '<i class="bi bi-check-circle me-1"></i>บันทึกข้อมูลเรียบร้อยแล้ว');
+    document.getElementById('recordForm').reset();
+    document.getElementById('photoPreview').style.display = 'none';
+    loadAddForm();
+  } catch (err) {
+    showAlert('addAlert', 'danger', 'บันทึกไม่สำเร็จ: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-save me-1"></i>บันทึกข้อมูล';
+  }
+});
+
+// ---------- HISTORY ----------
+let allRecordsCache = [];
+async function loadHistory(month) {
+  const body = document.getElementById('historyTableBody');
+  body.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">กำลังโหลด...</td></tr>';
+  try {
+    const records = await apiGet('records', month ? { month } : {});
+    allRecordsCache = records;
+
+    if (!document.getElementById('historyMonthFilter').dataset.loaded) {
+      const months = [...new Set(records.map(r => r.Date.slice(0, 7)))];
+      const sel = document.getElementById('historyMonthFilter');
+      months.forEach(m => {
+        const [y, mo] = m.split('-').map(Number);
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = `${mo}/${y + 543}`;
+        sel.appendChild(opt);
+      });
+      sel.dataset.loaded = '1';
+      sel.addEventListener('change', () => loadHistory(sel.value));
+    }
+
+    body.innerHTML = records.length ? records.map(r => {
+      const tc = r.tankChecks || [];
+      const ok = tc.filter(c => Number(c.Checked) === 1).length;
+      return `<tr>
+        <td>${thaiDate(r.Date)}</td><td>${fmt(r.TapMeter)}</td><td>${fmt(r.TapUsage)}</td>
+        <td>${fmt(r.GroundMeter)}</td><td>${fmt(r.GroundUsage)}</td><td>${r.Recorder}</td>
+        <td>${r.PhotoURL ? `<img src="${r.PhotoURL}" class="meter-photo-thumb" onclick="openPhoto('${r.PhotoURL}')">` : '<span class="text-muted small">-</span>'}</td>
+        <td>${tc.length ? `<span class="badge ${ok === tc.length ? 'badge-tank-ok' : 'badge-tank-bad'}">${ok}/${tc.length}</span>` : '<span class="text-muted small">-</span>'}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-primary" onclick="openEdit(${r.ID})"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteRec(${r.ID}, '${thaiDate(r.Date)}')"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="9" class="text-center text-muted py-4">ไม่พบข้อมูล</td></tr>';
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">โหลดข้อมูลไม่สำเร็จ: ${err.message}</td></tr>`;
+  }
+}
+
+async function deleteRec(id, label) {
+  if (!confirm(`ยืนยันการลบข้อมูลวันที่ ${label} ?`)) return;
+  try {
+    await apiPost({ action: 'deleteRecord', id });
+    loadHistory();
+  } catch (err) {
+    alert('ลบไม่สำเร็จ: ' + err.message);
+  }
+}
+
+async function openEdit(id) {
+  const rec = allRecordsCache.find(r => Number(r.ID) === id);
+  if (!rec) return;
+  document.getElementById('editAlert').innerHTML = '';
+  document.getElementById('e_id').value = rec.ID;
+  document.getElementById('e_date').value = rec.Date;
+  document.getElementById('e_tap').value = rec.TapMeter;
+  document.getElementById('e_ground').value = rec.GroundMeter;
+  document.getElementById('e_recorder').value = rec.Recorder;
+  document.getElementById('e_note').value = rec.Note || '';
+
+  const tanks = await apiGet('tanks');
+  const checks = rec.tankChecks || [];
+  document.getElementById('editTankBox').innerHTML = tanks.map(t => {
+    const c = checks.find(c => Number(c.TankID) === Number(t.ID));
+    const checked = c ? Number(c.Checked) === 1 : false;
+    return `<div class="tank-check-item d-flex justify-content-between align-items-center mb-2">
+      <span>${t.TankName}</span>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" data-etank-id="${t.ID}" ${checked ? 'checked' : ''}>
+      </div>
+    </div>`;
+  }).join('');
+
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+document.getElementById('editSaveBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true;
+  try {
+    const tankChecks = {};
+    document.querySelectorAll('#editTankBox [data-etank-id]').forEach(el => {
+      tankChecks[el.getAttribute('data-etank-id')] = el.checked;
+    });
+    await apiPost({
+      action: 'updateRecord',
+      id: document.getElementById('e_id').value,
+      date: document.getElementById('e_date').value,
+      tapMeter: document.getElementById('e_tap').value,
+      groundMeter: document.getElementById('e_ground').value,
+      recorder: document.getElementById('e_recorder').value,
+      note: document.getElementById('e_note').value,
+      tankChecks,
+    });
+    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+    loadHistory();
+  } catch (err) {
+    showAlert('editAlert', 'danger', 'บันทึกไม่สำเร็จ: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- TANKS ----------
+async function loadTanks() {
+  const body = document.getElementById('tanksTableBody');
+  body.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">กำลังโหลด...</td></tr>';
+  try {
+    const url = new URL(APPS_SCRIPT_URL);
+    url.searchParams.set('action', 'tanks');
+    // ใช้ action พิเศษที่คืนทั้งหมด (active + inactive) โดยเรียก getTanks(false) ผ่าน endpoint เดียวกัน
+    const res = await fetch(url);
+    const json = await res.json();
+    const tanks = json.data;
+    body.innerHTML = tanks.length ? tanks.map(t => `
+      <tr>
+        <td>${t.TankName}</td>
+        <td>${Number(t.Active) === 1 ? '<span class="badge badge-tank-ok">ใช้งานอยู่</span>' : '<span class="badge bg-secondary">ปิดใช้งาน</span>'}</td>
+        <td class="text-end"><button class="btn btn-sm btn-outline-secondary" onclick="toggleTank(${t.ID})">${Number(t.Active) === 1 ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button></td>
+      </tr>`).join('') : '<tr><td colspan="3" class="text-center text-muted py-4">ยังไม่มีถังเก็บน้ำ</td></tr>';
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
+  }
+}
+
+async function toggleTank(id) {
+  try { await apiPost({ action: 'toggleTank', id }); loadTanks(); }
+  catch (err) { alert('ทำรายการไม่สำเร็จ: ' + err.message); }
+}
+
+document.getElementById('addTankForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('newTankName').value.trim();
+  if (!name) return;
+  try {
+    await apiPost({ action: 'addTank', tankName: name });
+    document.getElementById('newTankName').value = '';
+    loadTanks();
+  } catch (err) {
+    alert('เพิ่มถังไม่สำเร็จ: ' + err.message);
+  }
+});
+
+// ---------- Init ----------
+loadDashboard();
+</script>
+</body>
+</html>
