@@ -36,6 +36,36 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
 </head>
 <body>
 
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="loginScreen" class="d-flex align-items-center justify-content-center" style="min-height:100vh;">
+  <div class="card shadow-sm" style="width:100%;max-width:380px;">
+    <div class="card-body p-4">
+      <div class="text-center mb-4">
+        <i class="bi bi-droplet-half fs-1" style="color:#0d6efd;"></i>
+        <h5 class="mt-2 mb-0 fw-bold">ระบบน้ำประปา-บาดาล</h5>
+        <div class="text-muted small">กรุณาเข้าสู่ระบบเพื่อใช้งาน</div>
+      </div>
+      <div id="loginAlert"></div>
+      <form id="loginForm">
+        <div class="mb-3">
+          <label class="form-label">ชื่อผู้ใช้</label>
+          <input type="text" class="form-control" id="loginUsername" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">รหัสผ่าน</label>
+          <input type="password" class="form-control" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2" id="loginBtn">
+          <i class="bi bi-box-arrow-in-right me-1"></i>เข้าสู่ระบบ
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN APP (ซ่อนไว้จนกว่าจะ login สำเร็จ) ===================== -->
+<div id="appRoot" style="display:none;">
+
 <nav class="navbar navbar-expand-lg navbar-dark app-navbar sticky-top">
   <div class="container-fluid">
     <span class="navbar-brand d-flex align-items-center gap-2">
@@ -46,17 +76,22 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navMain">
-      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
         <li class="nav-item"><a class="nav-link active" data-tab="dashboard"><i class="bi bi-speedometer2 me-1"></i>แดชบอร์ด</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="add"><i class="bi bi-plus-circle me-1"></i>บันทึกวันนี้</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="history"><i class="bi bi-table me-1"></i>ประวัติข้อมูล</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="tanks"><i class="bi bi-hdd-stack me-1"></i>ถังเก็บน้ำ</a></li>
+        <li class="nav-item ms-lg-3 d-flex align-items-center gap-2">
+          <span class="text-white-50 small" id="currentUserLabel"></span>
+          <button class="btn btn-sm btn-outline-light" id="logoutBtn"><i class="bi bi-box-arrow-right me-1"></i>ออกจากระบบ</button>
+        </li>
       </ul>
     </div>
   </div>
 </nav>
 
 <main class="container-fluid py-4 px-3 px-md-4">
+
 
 <div id="configWarning" class="alert alert-warning">
   <i class="bi bi-exclamation-triangle me-1"></i>
@@ -253,38 +288,50 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
   ระบบบันทึกปริมาณการใช้น้ำประปาและน้ำบาดาล (HTML + Google Sheets)
 </footer>
 
+</div><!-- /#appRoot -->
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 /* =========================================================
    ตั้งค่า URL ของ Google Apps Script Web App ที่ deploy แล้ว
    วิธีหา: Apps Script > Deploy > Manage deployments > คัดลอก Web app URL
    ========================================================= */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyaOO6vfCDCPxQAi8uGlkeDGa1Eyix69_4697e4UIvlcyNK_IQvLIiNaMdkfgsrFtib/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzn6-Gi4nd3UUU3cHxIefsZHtfB-VL7g3KSw_GtoE2AdPYsX9_eIZd1Fa80kIKbPJ09/exec';
 
 if (APPS_SCRIPT_URL.indexOf('XXXX') !== -1) {
   document.getElementById('configWarning').style.display = 'block';
 }
 
 // ---------- Helpers: เรียก API ----------
+function getToken() { return localStorage.getItem('water_auth_token') || ''; }
+
 async function apiGet(action, params) {
   const url = new URL(APPS_SCRIPT_URL);
   url.searchParams.set('action', action);
+  url.searchParams.set('token', getToken());
   for (const k in (params || {})) url.searchParams.set(k, params[k]);
   const res = await fetch(url);
   const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'เกิดข้อผิดพลาด');
+  if (!json.ok) {
+    if (json.authError) { forceLogout(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); }
+    throw new Error(json.error || 'เกิดข้อผิดพลาด');
+  }
   return json.data;
 }
 
 async function apiPost(payload) {
   // ใช้ Content-Type: text/plain เพื่อเลี่ยง CORS preflight ของ Apps Script
+  payload.token = getToken();
   const res = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload),
   });
   const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'เกิดข้อผิดพลาด');
+  if (!json.ok) {
+    if (json.authError) { forceLogout(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); }
+    throw new Error(json.error || 'เกิดข้อผิดพลาด');
+  }
   return json.data;
 }
 
@@ -585,12 +632,7 @@ async function loadTanks() {
   const body = document.getElementById('tanksTableBody');
   body.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">กำลังโหลด...</td></tr>';
   try {
-    const url = new URL(APPS_SCRIPT_URL);
-    url.searchParams.set('action', 'tanks');
-    // ใช้ action พิเศษที่คืนทั้งหมด (active + inactive) โดยเรียก getTanks(false) ผ่าน endpoint เดียวกัน
-    const res = await fetch(url);
-    const json = await res.json();
-    const tanks = json.data;
+    const tanks = await apiGet('tanks');
     body.innerHTML = tanks.length ? tanks.map(t => `
       <tr>
         <td>${t.TankName}</td>
@@ -620,8 +662,62 @@ document.getElementById('addTankForm').addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- Login / Logout ----------
+function showLogin() {
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function showApp(displayName) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+  document.getElementById('currentUserLabel').textContent = displayName ? ('สวัสดี, ' + displayName) : '';
+  loadDashboard();
+}
+
+function forceLogout() {
+  localStorage.removeItem('water_auth_token');
+  localStorage.removeItem('water_auth_name');
+  showLogin();
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังเข้าสู่ระบบ...';
+  document.getElementById('loginAlert').innerHTML = '';
+  try {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'login', username, password }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'เข้าสู่ระบบไม่สำเร็จ');
+    localStorage.setItem('water_auth_token', json.data.token);
+    localStorage.setItem('water_auth_name', json.data.displayName || username);
+    document.getElementById('loginForm').reset();
+    showApp(json.data.displayName || username);
+  } catch (err) {
+    showAlert('loginAlert', 'danger', err.message);
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i>เข้าสู่ระบบ';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try { await apiPost({ action: 'logout' }); } catch (e) { /* เพิกเฉยถ้าเรียกไม่สำเร็จ */ }
+  forceLogout();
+});
+
 // ---------- Init ----------
-loadDashboard();
+if (getToken()) {
+  showApp(localStorage.getItem('water_auth_name'));
+} else {
+  showLogin();
+}
 </script>
 </body>
 </html>
