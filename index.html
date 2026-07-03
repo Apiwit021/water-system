@@ -32,6 +32,7 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
 .tab-section.active{ display:block; }
 .spinner-wrap{ text-align:center; padding:2rem; color:#94a3b8; }
 #configWarning{ display:none; }
+.force-hidden{ display:none !important; }
 
 /* ---------- Login screen ---------- */
 .login-wrap{
@@ -137,7 +138,7 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
 </div>
 
 <!-- ===================== MAIN APP (ซ่อนไว้จนกว่าจะ login สำเร็จ) ===================== -->
-<div id="appRoot" style="display:none;">
+<div id="appRoot" class="force-hidden">
 
 
 <nav class="navbar navbar-expand-lg navbar-dark app-navbar sticky-top">
@@ -370,7 +371,7 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
    ตั้งค่า URL ของ Google Apps Script Web App ที่ deploy แล้ว
    วิธีหา: Apps Script > Deploy > Manage deployments > คัดลอก Web app URL
    ========================================================= */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywVHJXpvwrz3orteiJIG5m4t8kvbPBZu-R_FkZDJd3_ea4bMMZCIfquuoJAZoDtfY/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2Udw9BwML-VyzBFlAQRugMdeXNoU9t4nhgeYZXWC-wMltwZAmGOQ_C39DB5BEARbJ/exec';
 
 if (APPS_SCRIPT_URL.indexOf('XXXX') !== -1) {
   document.getElementById('configWarning').style.display = 'block';
@@ -747,13 +748,13 @@ document.getElementById('togglePassword').addEventListener('click', () => {
 });
 
 function showLogin() {
-  document.getElementById('appRoot').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appRoot').classList.add('force-hidden');
+  document.getElementById('loginScreen').classList.remove('force-hidden');
 }
 
 function showApp(displayName) {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appRoot').style.display = 'block';
+  document.getElementById('loginScreen').classList.add('force-hidden');
+  document.getElementById('appRoot').classList.remove('force-hidden');
   document.getElementById('currentUserLabel').textContent = displayName ? ('สวัสดี, ' + displayName) : '';
   loadDashboard();
 }
