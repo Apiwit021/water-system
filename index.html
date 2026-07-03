@@ -32,39 +32,113 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
 .tab-section.active{ display:block; }
 .spinner-wrap{ text-align:center; padding:2rem; color:#94a3b8; }
 #configWarning{ display:none; }
+
+/* ---------- Login screen ---------- */
+.login-wrap{
+  min-height:100vh;
+  padding:1.5rem;
+  background:radial-gradient(circle at 20% 20%, #e8f1ff 0%, var(--bg-soft) 45%);
+}
+.login-card{
+  width:100%;
+  max-width:860px;
+  display:flex;
+  border-radius:24px;
+  overflow:hidden;
+  background:#fff;
+}
+.login-brand-panel{
+  flex:0 0 42%;
+  background:linear-gradient(160deg,var(--brand-dark),#0d6efd 70%);
+  color:#fff;
+  padding:2.5rem 2rem;
+  position:relative;
+  overflow:hidden;
+}
+.login-brand-top i{ font-size:2.4rem; }
+.login-brand-bullets{ display:flex; flex-direction:column; gap:.6rem; font-size:.92rem; opacity:.95; position:relative; z-index:1; }
+.login-brand-bubbles{ position:absolute; inset:0; pointer-events:none; }
+.login-brand-bubbles span{
+  position:absolute; border-radius:50%; background:rgba(255,255,255,.08);
+}
+.login-brand-bubbles span:nth-child(1){ width:180px; height:180px; right:-60px; bottom:-60px; }
+.login-brand-bubbles span:nth-child(2){ width:110px; height:110px; right:40px; bottom:60px; }
+.login-brand-bubbles span:nth-child(3){ width:60px; height:60px; right:150px; bottom:-10px; }
+.login-form-panel{
+  flex:1;
+  padding:2.5rem 2.25rem;
+}
+#togglePassword{ cursor:pointer; }
+@media (max-width:767px){
+  .login-card{ border-radius:18px; }
+  .login-form-panel{ padding:2rem 1.5rem; }
+}
 </style>
 </head>
 <body>
 
 <!-- ===================== LOGIN SCREEN ===================== -->
-<div id="loginScreen" class="d-flex align-items-center justify-content-center" style="min-height:100vh;">
-  <div class="card shadow-sm" style="width:100%;max-width:380px;">
-    <div class="card-body p-4">
-      <div class="text-center mb-4">
-        <i class="bi bi-droplet-half fs-1" style="color:#0d6efd;"></i>
-        <h5 class="mt-2 mb-0 fw-bold">ระบบน้ำประปา-บาดาล</h5>
-        <div class="text-muted small">กรุณาเข้าสู่ระบบเพื่อใช้งาน</div>
+<div id="loginScreen" class="login-wrap d-flex align-items-center justify-content-center">
+  <div class="login-card shadow-lg">
+    <div class="login-brand-panel d-none d-md-flex flex-column justify-content-between">
+      <div class="login-brand-top">
+        <i class="bi bi-droplet-half"></i>
+        <div class="fw-bold fs-4 mt-2">ระบบน้ำประปา-บาดาล</div>
+        <div class="opacity-75 small mt-1">โรงพยาบาล</div>
+      </div>
+      <div class="login-brand-bullets">
+        <div><i class="bi bi-check2-circle me-2"></i>บันทึกค่ามาตรน้ำรายวัน</div>
+        <div><i class="bi bi-check2-circle me-2"></i>คำนวณปริมาณการใช้อัตโนมัติ</div>
+        <div><i class="bi bi-check2-circle me-2"></i>ตรวจสอบถังเก็บน้ำและรูปถ่าย</div>
+      </div>
+      <div class="login-brand-bubbles" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="login-form-panel">
+      <div class="text-center text-md-start mb-4">
+        <i class="bi bi-droplet-half fs-1 d-md-none" style="color:#0d6efd;"></i>
+        <h5 class="mt-2 mb-0 fw-bold">เข้าสู่ระบบ</h5>
+        <div class="text-muted small">กรอกชื่อผู้ใช้และรหัสผ่านที่ได้รับจากผู้ดูแลระบบ</div>
       </div>
       <div id="loginAlert"></div>
       <form id="loginForm">
         <div class="mb-3">
           <label class="form-label">ชื่อผู้ใช้</label>
-          <input type="text" class="form-control" id="loginUsername" required autofocus>
+          <div class="input-group">
+            <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
+            <input type="text" class="form-control" id="loginUsername" placeholder="เช่น somchai" required autofocus>
+          </div>
         </div>
-        <div class="mb-3">
+        <div class="mb-2">
           <label class="form-label">รหัสผ่าน</label>
-          <input type="password" class="form-control" id="loginPassword" required>
+          <div class="input-group">
+            <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+            <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required>
+            <button type="button" class="input-group-text bg-white" id="togglePassword" tabindex="-1">
+              <i class="bi bi-eye" id="togglePasswordIcon"></i>
+            </button>
+          </div>
         </div>
-        <button type="submit" class="btn btn-primary w-100 py-2" id="loginBtn">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="loginRemember" checked>
+          <label class="form-check-label small text-muted" for="loginRemember">จดจำการเข้าสู่ระบบไว้ในเครื่องนี้</label>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill" id="loginBtn">
           <i class="bi bi-box-arrow-in-right me-1"></i>เข้าสู่ระบบ
         </button>
       </form>
+      <div class="text-center text-muted small mt-4">
+        ลืมรหัสผ่าน หรือยังไม่มีบัญชี? ติดต่อผู้ดูแลระบบ
+      </div>
     </div>
   </div>
 </div>
 
 <!-- ===================== MAIN APP (ซ่อนไว้จนกว่าจะ login สำเร็จ) ===================== -->
 <div id="appRoot" style="display:none;">
+
 
 <nav class="navbar navbar-expand-lg navbar-dark app-navbar sticky-top">
   <div class="container-fluid">
@@ -303,7 +377,8 @@ if (APPS_SCRIPT_URL.indexOf('XXXX') !== -1) {
 }
 
 // ---------- Helpers: เรียก API ----------
-function getToken() { return localStorage.getItem('water_auth_token') || ''; }
+function getToken() { return localStorage.getItem('water_auth_token') || sessionStorage.getItem('water_auth_token') || ''; }
+function getStoredName() { return localStorage.getItem('water_auth_name') || sessionStorage.getItem('water_auth_name') || ''; }
 
 async function apiGet(action, params) {
   const url = new URL(APPS_SCRIPT_URL);
@@ -663,6 +738,14 @@ document.getElementById('addTankForm').addEventListener('submit', async (e) => {
 });
 
 // ---------- Login / Logout ----------
+document.getElementById('togglePassword').addEventListener('click', () => {
+  const input = document.getElementById('loginPassword');
+  const icon = document.getElementById('togglePasswordIcon');
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+});
+
 function showLogin() {
   document.getElementById('appRoot').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
@@ -678,6 +761,8 @@ function showApp(displayName) {
 function forceLogout() {
   localStorage.removeItem('water_auth_token');
   localStorage.removeItem('water_auth_name');
+  sessionStorage.removeItem('water_auth_token');
+  sessionStorage.removeItem('water_auth_name');
   showLogin();
 }
 
@@ -696,8 +781,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'เข้าสู่ระบบไม่สำเร็จ');
-    localStorage.setItem('water_auth_token', json.data.token);
-    localStorage.setItem('water_auth_name', json.data.displayName || username);
+    localStorage.removeItem('water_auth_token'); localStorage.removeItem('water_auth_name');
+    sessionStorage.removeItem('water_auth_token'); sessionStorage.removeItem('water_auth_name');
+    const store = document.getElementById('loginRemember').checked ? localStorage : sessionStorage;
+    store.setItem('water_auth_token', json.data.token);
+    store.setItem('water_auth_name', json.data.displayName || username);
     document.getElementById('loginForm').reset();
     showApp(json.data.displayName || username);
   } catch (err) {
@@ -714,7 +802,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 
 // ---------- Init ----------
 if (getToken()) {
-  showApp(localStorage.getItem('water_auth_name'));
+  showApp(getStoredName());
 } else {
   showLogin();
 }
