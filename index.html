@@ -249,11 +249,12 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
         <div class="row g-3">
           <div class="col-md-4"><label class="form-label">วัน-เดือน-ปี <span class="text-danger">*</span></label>
             <input type="date" class="form-control" id="f_date" required></div>
-          <div class="col-md-4"><label class="form-label">เลขมาตรน้ำประปา <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" class="form-control" id="f_tap" required></div>
-          <div class="col-md-4"><label class="form-label">เลขมาตรน้ำบาดาล <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" class="form-control" id="f_ground" required></div>
+          <div class="col-md-4"><label class="form-label">เลขมาตรน้ำประปา</label>
+            <input type="number" step="0.01" class="form-control" id="f_tap" placeholder="เว้นว่างได้ถ้าไม่มีข้อมูลวันนี้"></div>
+          <div class="col-md-4"><label class="form-label">เลขมาตรน้ำบาดาล</label>
+            <input type="number" step="0.01" class="form-control" id="f_ground" placeholder="เว้นว่างได้ถ้าไม่มีข้อมูลวันนี้"></div>
         </div>
+        <div class="form-text mb-0">กรอกอย่างน้อย 1 ค่า (ประปาหรือบาดาล) — ถ้ามีข้อมูลของวันนี้อยู่แล้ว ระบบจะรวมค่าที่กรอกใหม่เข้ากับข้อมูลเดิมให้อัตโนมัติ</div>
         <hr>
         <div class="row g-3">
           <div class="col-md-6"><label class="form-label">ผู้บันทึกข้อมูลวันนี้ <span class="text-danger">*</span></label>
@@ -386,8 +387,8 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
           <input type="hidden" id="e_id">
           <div class="row g-3">
             <div class="col-md-4"><label class="form-label">วัน-เดือน-ปี</label><input type="date" class="form-control" id="e_date" required></div>
-            <div class="col-md-4"><label class="form-label">มาตรน้ำประปา</label><input type="number" step="0.01" class="form-control" id="e_tap" required></div>
-            <div class="col-md-4"><label class="form-label">มาตรน้ำบาดาล</label><input type="number" step="0.01" class="form-control" id="e_ground" required></div>
+            <div class="col-md-4"><label class="form-label">มาตรน้ำประปา</label><input type="number" step="0.01" class="form-control" id="e_tap" placeholder="เว้นว่างได้"></div>
+            <div class="col-md-4"><label class="form-label">มาตรน้ำบาดาล</label><input type="number" step="0.01" class="form-control" id="e_ground" placeholder="เว้นว่างได้"></div>
             <div class="col-md-6"><label class="form-label">ผู้บันทึก</label><input type="text" class="form-control" id="e_recorder" required></div>
             <div class="col-md-6"><label class="form-label">หมายเหตุ</label><input type="text" class="form-control" id="e_note"></div>
           </div>
@@ -607,6 +608,12 @@ document.getElementById('f_photo').addEventListener('change', (e) => {
 
 document.getElementById('recordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const tapVal = document.getElementById('f_tap').value.trim();
+  const groundVal = document.getElementById('f_ground').value.trim();
+  if (!tapVal && !groundVal) {
+    showAlert('addAlert', 'danger', 'กรุณากรอกเลขมาตรน้ำอย่างน้อย 1 ค่า (ประปาหรือบาดาล)');
+    return;
+  }
   const btn = document.getElementById('submitBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
   try {
@@ -618,8 +625,8 @@ document.getElementById('recordForm').addEventListener('submit', async (e) => {
     const payload = {
       action: 'addRecord',
       date: document.getElementById('f_date').value,
-      tapMeter: document.getElementById('f_tap').value,
-      groundMeter: document.getElementById('f_ground').value,
+      tapMeter: tapVal,
+      groundMeter: groundVal,
       recorder: document.getElementById('f_recorder').value,
       note: document.getElementById('f_note').value,
       tankChecks,
@@ -632,8 +639,11 @@ document.getElementById('recordForm').addEventListener('submit', async (e) => {
       payload.photoMime = photoFile.type;
     }
 
-    await apiPost(payload);
-    showAlert('addAlert', 'success', '<i class="bi bi-check-circle me-1"></i>บันทึกข้อมูลเรียบร้อยแล้ว');
+    const result = await apiPost(payload);
+    const msg = result && result.merged
+      ? '<i class="bi bi-check-circle me-1"></i>รวมข้อมูลเข้ากับบันทึกของวันนี้ที่มีอยู่แล้วเรียบร้อย'
+      : '<i class="bi bi-check-circle me-1"></i>บันทึกข้อมูลเรียบร้อยแล้ว';
+    showAlert('addAlert', 'success', msg);
     document.getElementById('recordForm').reset();
     document.getElementById('photoPreview').style.display = 'none';
     loadAddForm();
@@ -723,6 +733,12 @@ async function openEdit(id) {
 }
 
 document.getElementById('editSaveBtn').addEventListener('click', async () => {
+  const tapVal = document.getElementById('e_tap').value.trim();
+  const groundVal = document.getElementById('e_ground').value.trim();
+  if (!tapVal && !groundVal) {
+    showAlert('editAlert', 'danger', 'กรุณากรอกเลขมาตรน้ำอย่างน้อย 1 ค่า (ประปาหรือบาดาล)');
+    return;
+  }
   const btn = document.getElementById('editSaveBtn');
   btn.disabled = true;
   try {
@@ -734,8 +750,8 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
       action: 'updateRecord',
       id: document.getElementById('e_id').value,
       date: document.getElementById('e_date').value,
-      tapMeter: document.getElementById('e_tap').value,
-      groundMeter: document.getElementById('e_ground').value,
+      tapMeter: tapVal,
+      groundMeter: groundVal,
       recorder: document.getElementById('e_recorder').value,
       note: document.getElementById('e_note').value,
       tankChecks,
