@@ -759,7 +759,10 @@ async function loadTanks() {
       <tr>
         <td>${t.TankName}</td>
         <td>${Number(t.Active) === 1 ? '<span class="badge badge-tank-ok">ใช้งานอยู่</span>' : '<span class="badge bg-secondary">ปิดใช้งาน</span>'}</td>
-        <td class="text-end"><button class="btn btn-sm btn-outline-secondary" onclick="toggleTank(${t.ID})">${Number(t.Active) === 1 ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary" onclick="toggleTank(${t.ID})">${Number(t.Active) === 1 ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteTankConfirm(${t.ID}, '${t.TankName.replace(/'/g, "\\'")}')"><i class="bi bi-trash"></i></button>
+        </td>
       </tr>`).join('') : '<tr><td colspan="3" class="text-center text-muted py-4">ยังไม่มีถังเก็บน้ำ</td></tr>';
   } catch (err) {
     body.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
@@ -769,6 +772,16 @@ async function loadTanks() {
 async function toggleTank(id) {
   try { await apiPost({ action: 'toggleTank', id }); loadTanks(); }
   catch (err) { alert('ทำรายการไม่สำเร็จ: ' + err.message); }
+}
+
+async function deleteTankConfirm(id, name) {
+  if (!confirm(`ยืนยันการลบถัง "${name}" ?\n\nประวัติการตรวจสอบถังใบนี้ในทุกวันที่ผ่านมาจะถูกลบไปด้วย และกู้คืนไม่ได้`)) return;
+  try {
+    await apiPost({ action: 'deleteTank', id });
+    loadTanks();
+  } catch (err) {
+    alert('ลบไม่สำเร็จ: ' + err.message);
+  }
 }
 
 document.getElementById('addTankForm').addEventListener('submit', async (e) => {
