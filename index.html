@@ -101,7 +101,7 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
       <div class="text-center text-md-start mb-4">
         <i class="bi bi-droplet-half fs-1 d-md-none" style="color:#0d6efd;"></i>
         <h5 class="mt-2 mb-0 fw-bold">เข้าสู่ระบบ</h5>
-        <div class="text-muted small">กรอกชื่อผู้ใช้และรหัสผ่านที่ได้รับจากผู้ดูแลระบบ</div>
+        <div class="text-muted small">กรอกชื่อผู้ใช้และรหัสผ่านที่ได้รับจากฝ่าย IT</div>
       </div>
       <div id="loginAlert"></div>
       <form id="loginForm">
@@ -131,7 +131,7 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
         </button>
       </form>
       <div class="text-center text-muted small mt-4">
-        ลืมรหัสผ่าน หรือยังไม่มีบัญชี? ติดต่อผู้ดูแลระบบ
+        ลืมรหัสผ่าน หรือยังไม่มีบัญชี? ติดต่อฝ่าย IT
       </div>
     </div>
   </div>
@@ -156,6 +156,7 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
         <li class="nav-item"><a class="nav-link" data-tab="add"><i class="bi bi-plus-circle me-1"></i>บันทึกวันนี้</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="history"><i class="bi bi-table me-1"></i>ประวัติข้อมูล</a></li>
         <li class="nav-item"><a class="nav-link" data-tab="tanks"><i class="bi bi-hdd-stack me-1"></i>ถังเก็บน้ำ</a></li>
+        <li class="nav-item" id="usersNavItem" style="display:none;"><a class="nav-link" data-tab="users"><i class="bi bi-people me-1"></i>ผู้ใช้งาน</a></li>
         <li class="nav-item ms-lg-3 d-flex align-items-center gap-2">
           <span class="text-white-50 small" id="currentUserLabel"></span>
           <button class="btn btn-sm btn-outline-light" id="logoutBtn"><i class="bi bi-box-arrow-right me-1"></i>ออกจากระบบ</button>
@@ -320,6 +321,48 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
   </div>
 </section>
 
+<!-- ===================== USERS (เฉพาะ Admin) ===================== -->
+<section id="tab-users" class="tab-section">
+  <h3 class="section-title mb-4"><i class="bi bi-people me-2"></i>จัดการผู้ใช้งาน</h3>
+  <div id="usersAlert"></div>
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card"><div class="card-header">เพิ่มผู้ใช้งานใหม่</div><div class="card-body">
+        <form id="addUserForm">
+          <div class="mb-3">
+            <label class="form-label">ชื่อผู้ใช้ (username) <span class="text-danger">*</span></label>
+            <input type="text" id="newUsername" class="form-control" placeholder="เช่น somchai" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">ชื่อที่แสดงผล</label>
+            <input type="text" id="newDisplayName" class="form-control" placeholder="เช่น สมชาย ใจดี">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">รหัสผ่าน <span class="text-danger">*</span></label>
+            <input type="password" id="newPassword" class="form-control" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">สิทธิ์การใช้งาน</label>
+            <select id="newRole" class="form-select">
+              <option value="Staff" selected>เจ้าหน้าที่ (บันทึกข้อมูล)</option>
+              <option value="Admin">ฝ่าย IT (จัดการผู้ใช้งานได้)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary w-100" id="addUserBtn"><i class="bi bi-person-plus me-1"></i>เพิ่มผู้ใช้งาน</button>
+        </form>
+      </div></div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card"><div class="card-header">รายชื่อผู้ใช้งานทั้งหมด</div><div class="card-body p-0">
+        <table class="table mb-0 align-middle">
+          <thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อที่แสดงผล</th><th>สิทธิ์</th><th>สถานะ</th><th class="text-end">จัดการ</th></tr></thead>
+          <tbody id="usersTableBody"><tr><td colspan="5" class="text-center text-muted py-4">กำลังโหลด...</td></tr></tbody>
+        </table>
+      </div></div>
+    </div>
+  </div>
+</section>
+
 </main>
 
 <!-- PHOTO MODAL -->
@@ -371,7 +414,7 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
    ตั้งค่า URL ของ Google Apps Script Web App ที่ deploy แล้ว
    วิธีหา: Apps Script > Deploy > Manage deployments > คัดลอก Web app URL
    ========================================================= */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpA7W1GSW1I06I5eYoqoTlf3VH1Q-vD2xvgI2UApe1gOj0h38t294OMN1PFviQknqe/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2Udw9BwML-VyzBFlAQRugMdeXNoU9t4nhgeYZXWC-wMltwZAmGOQ_C39DB5BEARbJ/exec';
 
 if (APPS_SCRIPT_URL.indexOf('XXXX') !== -1) {
   document.getElementById('configWarning').style.display = 'block';
@@ -380,6 +423,7 @@ if (APPS_SCRIPT_URL.indexOf('XXXX') !== -1) {
 // ---------- Helpers: เรียก API ----------
 function getToken() { return localStorage.getItem('water_auth_token') || sessionStorage.getItem('water_auth_token') || ''; }
 function getStoredName() { return localStorage.getItem('water_auth_name') || sessionStorage.getItem('water_auth_name') || ''; }
+function getStoredRole() { return localStorage.getItem('water_auth_role') || sessionStorage.getItem('water_auth_role') || 'Staff'; }
 
 async function apiGet(action, params) {
   const url = new URL(APPS_SCRIPT_URL);
@@ -445,6 +489,7 @@ document.querySelectorAll('[data-tab-link]').forEach(el => {
   el.addEventListener('click', () => switchTab(el.getAttribute('data-tab-link')));
 });
 function switchTab(tab) {
+  if (tab === 'users' && getStoredRole() !== 'Admin') tab = 'dashboard';
   document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   document.querySelectorAll('[data-tab]').forEach(n => n.classList.toggle('active', n.getAttribute('data-tab') === tab));
@@ -452,6 +497,7 @@ function switchTab(tab) {
   if (tab === 'add') loadAddForm();
   if (tab === 'history') loadHistory();
   if (tab === 'tanks') loadTanks();
+  if (tab === 'users') loadUsers();
 }
 
 // ---------- DASHBOARD ----------
@@ -738,6 +784,76 @@ document.getElementById('addTankForm').addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- USERS (เฉพาะ Admin) ----------
+async function loadUsers() {
+  const body = document.getElementById('usersTableBody');
+  body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">กำลังโหลด...</td></tr>';
+  document.getElementById('usersAlert').innerHTML = '';
+  try {
+    const users = await apiGet('users');
+    body.innerHTML = users.length ? users.map(u => `
+      <tr>
+        <td>${u.Username}</td>
+        <td>${u.DisplayName || '-'}</td>
+        <td>
+          <select class="form-select form-select-sm" style="width:auto;" onchange="changeUserRole('${u.Username}', this.value)">
+            <option value="Staff" ${u.Role !== 'Admin' ? 'selected' : ''}>เจ้าหน้าที่</option>
+            <option value="Admin" ${u.Role === 'Admin' ? 'selected' : ''}>ฝ่าย IT</option>
+          </select>
+        </td>
+        <td>${Number(u.Active) === 1 ? '<span class="badge badge-tank-ok">ใช้งานอยู่</span>' : '<span class="badge bg-secondary">ปิดใช้งาน</span>'}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary" onclick="toggleUser('${u.Username}')">
+            ${Number(u.Active) === 1 ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+          </button>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="5" class="text-center text-muted py-4">ยังไม่มีผู้ใช้งาน</td></tr>';
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
+  }
+}
+
+document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('addUserBtn');
+  btn.disabled = true;
+  try {
+    await apiPost({
+      action: 'addUser',
+      username: document.getElementById('newUsername').value.trim(),
+      password: document.getElementById('newPassword').value,
+      displayName: document.getElementById('newDisplayName').value.trim(),
+      role: document.getElementById('newRole').value,
+    });
+    showAlert('usersAlert', 'success', '<i class="bi bi-check-circle me-1"></i>เพิ่มผู้ใช้งานเรียบร้อยแล้ว');
+    document.getElementById('addUserForm').reset();
+    loadUsers();
+  } catch (err) {
+    showAlert('usersAlert', 'danger', 'เพิ่มผู้ใช้งานไม่สำเร็จ: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function toggleUser(username) {
+  try {
+    await apiPost({ action: 'toggleUser', username });
+    loadUsers();
+  } catch (err) {
+    showAlert('usersAlert', 'danger', 'ทำรายการไม่สำเร็จ: ' + err.message);
+  }
+}
+
+async function changeUserRole(username, role) {
+  try {
+    await apiPost({ action: 'setUserRole', username, role });
+    showAlert('usersAlert', 'success', 'เปลี่ยนสิทธิ์ผู้ใช้งานเรียบร้อยแล้ว');
+  } catch (err) {
+    showAlert('usersAlert', 'danger', 'เปลี่ยนสิทธิ์ไม่สำเร็จ: ' + err.message);
+    loadUsers();
+  }
+}
+
 // ---------- Login / Logout ----------
 document.getElementById('togglePassword').addEventListener('click', () => {
   const input = document.getElementById('loginPassword');
@@ -756,14 +872,17 @@ function showApp(displayName) {
   document.getElementById('loginScreen').classList.add('force-hidden');
   document.getElementById('appRoot').classList.remove('force-hidden');
   document.getElementById('currentUserLabel').textContent = displayName ? ('สวัสดี, ' + displayName) : '';
+  document.getElementById('usersNavItem').style.display = getStoredRole() === 'Admin' ? '' : 'none';
   loadDashboard();
 }
 
 function forceLogout() {
   localStorage.removeItem('water_auth_token');
   localStorage.removeItem('water_auth_name');
+  localStorage.removeItem('water_auth_role');
   sessionStorage.removeItem('water_auth_token');
   sessionStorage.removeItem('water_auth_name');
+  sessionStorage.removeItem('water_auth_role');
   showLogin();
 }
 
@@ -782,11 +901,12 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'เข้าสู่ระบบไม่สำเร็จ');
-    localStorage.removeItem('water_auth_token'); localStorage.removeItem('water_auth_name');
-    sessionStorage.removeItem('water_auth_token'); sessionStorage.removeItem('water_auth_name');
+    localStorage.removeItem('water_auth_token'); localStorage.removeItem('water_auth_name'); localStorage.removeItem('water_auth_role');
+    sessionStorage.removeItem('water_auth_token'); sessionStorage.removeItem('water_auth_name'); sessionStorage.removeItem('water_auth_role');
     const store = document.getElementById('loginRemember').checked ? localStorage : sessionStorage;
     store.setItem('water_auth_token', json.data.token);
     store.setItem('water_auth_name', json.data.displayName || username);
+    store.setItem('water_auth_role', json.data.role || 'Staff');
     document.getElementById('loginForm').reset();
     showApp(json.data.displayName || username);
   } catch (err) {
