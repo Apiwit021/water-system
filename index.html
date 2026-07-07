@@ -265,9 +265,9 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
         </div>
       </div></div>
 
-      <div class="card mt-3"><div class="card-header"><i class="bi bi-camera me-1"></i>ถ่ายรูป / แนบรูปมาตรน้ำ</div><div class="card-body">
-        <input type="file" id="f_photo" accept="image/*" capture="environment" class="form-control">
-        <div class="form-text">ใช้กล้องมือถือถ่ายรูปได้ทันที หรือเลือกไฟล์จากเครื่อง</div>
+      <div class="card mt-3"><div class="card-header"><i class="bi bi-camera me-1"></i>ถ่ายรูป / แนบรูปมาตรน้ำ <span class="text-danger">*</span></div><div class="card-body">
+        <input type="file" id="f_photo" accept="image/*" capture="environment" class="form-control" required>
+        <div class="form-text">ต้องแนบรูปถ่ายมาตรน้ำทุกครั้งเพื่อเป็นหลักฐาน — ใช้กล้องมือถือถ่ายรูปได้ทันที หรือเลือกไฟล์จากเครื่อง</div>
         <img id="photoPreview" class="camera-preview mt-2">
       </div></div>
     </div>
@@ -393,6 +393,12 @@ body{ font-family:'Sarabun', sans-serif; background:var(--bg-soft); color:#1f293
             <div class="col-md-6"><label class="form-label">หมายเหตุ</label><input type="text" class="form-control" id="e_note"></div>
           </div>
           <div class="mt-3" id="editTankBox"></div>
+          <div class="mt-3">
+            <label class="form-label">รูปถ่ายมาตรน้ำ <span class="text-danger" id="ePhotoRequiredMark" style="display:none;">*</span></label>
+            <div id="eCurrentPhotoBox" class="mb-2"></div>
+            <input type="file" id="e_photo" accept="image/*" capture="environment" class="form-control">
+            <div class="form-text">อัปโหลดใหม่เพื่อแทนที่รูปเดิม (ทุกรายการต้องมีรูปเป็นหลักฐานเสมอ)</div>
+          </div>
         </form>
       </div>
       <div class="modal-footer">
@@ -610,8 +616,13 @@ document.getElementById('recordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const tapVal = document.getElementById('f_tap').value.trim();
   const groundVal = document.getElementById('f_ground').value.trim();
+  const photoFile = document.getElementById('f_photo').files[0];
   if (!tapVal && !groundVal) {
     showAlert('addAlert', 'danger', 'กรุณากรอกเลขมาตรน้ำอย่างน้อย 1 ค่า (ประปาหรือบาดาล)');
+    return;
+  }
+  if (!photoFile) {
+    showAlert('addAlert', 'danger', 'กรุณาแนบรูปถ่ายมาตรน้ำทุกครั้งเพื่อเป็นหลักฐาน');
     return;
   }
   const btn = document.getElementById('submitBtn');
@@ -630,20 +641,13 @@ document.getElementById('recordForm').addEventListener('submit', async (e) => {
       recorder: document.getElementById('f_recorder').value,
       note: document.getElementById('f_note').value,
       tankChecks,
+      photoBase64: await fileToBase64(photoFile),
+      photoName: photoFile.name,
+      photoMime: photoFile.type,
     };
 
-    const photoFile = document.getElementById('f_photo').files[0];
-    if (photoFile) {
-      payload.photoBase64 = await fileToBase64(photoFile);
-      payload.photoName = photoFile.name;
-      payload.photoMime = photoFile.type;
-    }
-
-    const result = await apiPost(payload);
-    const msg = result && result.merged
-      ? '<i class="bi bi-check-circle me-1"></i>รวมข้อมูลเข้ากับบันทึกของวันนี้ที่มีอยู่แล้วเรียบร้อย'
-      : '<i class="bi bi-check-circle me-1"></i>บันทึกข้อมูลเรียบร้อยแล้ว';
-    showAlert('addAlert', 'success', msg);
+    await apiPost(payload);
+    showAlert('addAlert', 'success', '<i class="bi bi-check-circle me-1"></i>บันทึกข้อมูลเป็นรายการใหม่เรียบร้อยแล้ว');
     document.getElementById('recordForm').reset();
     document.getElementById('photoPreview').style.display = 'none';
     loadAddForm();
@@ -715,6 +719,17 @@ async function openEdit(id) {
   document.getElementById('e_ground').value = rec.GroundMeter;
   document.getElementById('e_recorder').value = rec.Recorder;
   document.getElementById('e_note').value = rec.Note || '';
+  document.getElementById('e_photo').value = '';
+
+  const currentPhotoBox = document.getElementById('eCurrentPhotoBox');
+  const requiredMark = document.getElementById('ePhotoRequiredMark');
+  if (rec.PhotoURL) {
+    currentPhotoBox.innerHTML = `<img src="${rec.PhotoURL}" class="meter-photo-thumb" onclick="openPhoto('${rec.PhotoURL}')">`;
+    requiredMark.style.display = 'none';
+  } else {
+    currentPhotoBox.innerHTML = '<span class="text-danger small">ยังไม่มีรูป — กรุณาแนบรูปก่อนบันทึก</span>';
+    requiredMark.style.display = 'inline';
+  }
 
   const tanks = await apiGet('tanks');
   const checks = rec.tankChecks || [];
@@ -735,8 +750,14 @@ async function openEdit(id) {
 document.getElementById('editSaveBtn').addEventListener('click', async () => {
   const tapVal = document.getElementById('e_tap').value.trim();
   const groundVal = document.getElementById('e_ground').value.trim();
+  const rec = allRecordsCache.find(r => Number(r.ID) === Number(document.getElementById('e_id').value));
+  const photoFile = document.getElementById('e_photo').files[0];
   if (!tapVal && !groundVal) {
     showAlert('editAlert', 'danger', 'กรุณากรอกเลขมาตรน้ำอย่างน้อย 1 ค่า (ประปาหรือบาดาล)');
+    return;
+  }
+  if (!(rec && rec.PhotoURL) && !photoFile) {
+    showAlert('editAlert', 'danger', 'กรุณาแนบรูปถ่ายมาตรน้ำก่อนบันทึก (ทุกรายการต้องมีรูปเป็นหลักฐาน)');
     return;
   }
   const btn = document.getElementById('editSaveBtn');
@@ -746,7 +767,7 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
     document.querySelectorAll('#editTankBox [data-etank-id]').forEach(el => {
       tankChecks[el.getAttribute('data-etank-id')] = el.checked;
     });
-    await apiPost({
+    const payload = {
       action: 'updateRecord',
       id: document.getElementById('e_id').value,
       date: document.getElementById('e_date').value,
@@ -755,7 +776,13 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
       recorder: document.getElementById('e_recorder').value,
       note: document.getElementById('e_note').value,
       tankChecks,
-    });
+    };
+    if (photoFile) {
+      payload.photoBase64 = await fileToBase64(photoFile);
+      payload.photoName = photoFile.name;
+      payload.photoMime = photoFile.type;
+    }
+    await apiPost(payload);
     bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
     loadHistory();
   } catch (err) {
